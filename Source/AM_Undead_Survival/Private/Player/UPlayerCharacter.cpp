@@ -6,7 +6,6 @@
 #include "EnhancedInputComponent.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/SpringArmComponent.h"
 
 AUPlayerCharacter::AUPlayerCharacter()
 {
@@ -25,9 +24,12 @@ void AUPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 {
 	
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
 	UEnhancedInputComponent* enhancedInputComp = Cast<UEnhancedInputComponent>(PlayerInputComponent);
 	if (enhancedInputComp)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Has Comp!"));
+
 		enhancedInputComp->BindAction(MoveInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Move);
 		enhancedInputComp->BindAction(LookInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Look);
 		enhancedInputComp->BindAction(JumpInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Jump);
@@ -40,6 +42,8 @@ void AUPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 void AUPlayerCharacter::Move(const FInputActionValue& InputValue)
 {
+	UE_LOG(LogTemp, Warning, TEXT("Moving!"));
+
 	FVector2D input = InputValue.Get<FVector2D>();
 	input.Normalize();
 
@@ -49,17 +53,19 @@ void AUPlayerCharacter::Move(const FInputActionValue& InputValue)
 void AUPlayerCharacter::Look(const FInputActionValue& InputValue)
 {
 	FVector2D input = InputValue.Get<FVector2D>();
-	AddControllerYawInput(input.X);
-	AddControllerPitchInput(-input.Y);
+	//AddControllerYawInput(input.X);
+	//AddControllerPitchInput(-input.Y);
 }
 
 
 void AUPlayerCharacter::Shoot()
 {
+	UE_LOG(LogTemp, Warning, TEXT("Shooting!"));
 
 }
 
 void AUPlayerCharacter::Reload()
 {
+	UE_LOG(LogTemp, Warning, TEXT("Reloading!"));
 
 }

@@ -6,7 +6,6 @@
 #include "Character/UCharacterBase.h"
 #include "UPlayerCharacter.generated.h"
 
-class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
@@ -23,9 +22,6 @@ public:
 	AUPlayerCharacter();
 
 private:
-	UPROPERTY(visibleAnywhere, Category = "View")
-		USpringArmComponent* CameraBoom;
-
 	UPROPERTY(visibleAnywhere, Category = "View")
 		UCameraComponent* ViewCamera;
 
