@@ -46,6 +46,8 @@ void AUPlayerCharacter::BeginPlay()
 	RecoilAnimTimelineCallback.BindUFunction(this, FName("UpdateRecoilAnimation"));
 	RecoilAnimationTimeline->AddInterpFloat(RecoilAnimCurve, RecoilAnimTimelineCallback);
 
+	RecoilAnimationTimeline->SetTimelineFinishedFunc(FOnTimelineEventStatic::CreateUFunction(this, FName("RecoilTimelineAnimFinished")));
+
 	GetWeaponStats();
 }
 
@@ -70,7 +72,10 @@ void AUPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		enhancedInputComp->BindAction(MoveInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Move);
 		enhancedInputComp->BindAction(LookInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Look);
 		enhancedInputComp->BindAction(JumpInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Jump);
+
 		enhancedInputComp->BindAction(ShootInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Shoot);
+		enhancedInputComp->BindAction(ShootInputAction, ETriggerEvent::Completed, this, &AUPlayerCharacter::StoppedShooting);
+
 		enhancedInputComp->BindAction(ReloadInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Reload);
 	}
 	
@@ -91,91 +96,106 @@ void AUPlayerCharacter::Look(const FInputActionValue& InputValue)
 	AddControllerPitchInput(-input.X);
 }
 
-
-
 void AUPlayerCharacter::Shoot()
 {
 	if (Cur_WeaponData) 
 	{
-		if (Cur_WeaponData->FiringType == FireType::SingleFire) 
-		{
-			FVector StartLocation = ViewCamera->GetComponentLocation();
-			FVector EndLocation = ViewCamera->GetForwardVector() * Cur_WeaponData->FireMaxRange + ViewCamera->GetComponentLocation();
-			ECollisionChannel TraceChannel = ECC_Visibility;
-			FCollisionQueryParams CollisionParams;
-			CollisionParams.bTraceComplex = true; 
-			CollisionParams.AddIgnoredActor(this);
-
-			FHitResult HitResult;
-			bool bHit = GetWorld()->LineTraceSingleByChannel(
-				HitResult,
-				StartLocation,
-				EndLocation,
-				TraceChannel,
-				CollisionParams
-			);
-			if (bHit)
-			{
-				AActor* HitActor = HitResult.GetActor();
-				if (HitActor)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Hit actor: %s"), *HitActor->GetName());
-				}
-			}
-
-			if (RecoilTimeline && RecoilCurve)
-			{
-				RecoilTimeline->SetPlayRate(1 / Cur_WeaponData->RecoilLength);
-
-				RecoilTimeline->PlayFromStart();
-				RecoilAnimationTimeline->PlayFromStart();
-			}
-			
-
-			return;
-		}
-
 		if (Cur_WeaponData->FiringType == FireType::Automatic)
 		{
-			FVector StartLocation = ViewCamera->GetComponentLocation();
-			FVector EndLocation = ViewCamera->GetForwardVector() * Cur_WeaponData->FireMaxRange + ViewCamera->GetComponentLocation();
-			ECollisionChannel TraceChannel = ECC_Visibility;
-			FCollisionQueryParams CollisionParams;
-			CollisionParams.bTraceComplex = true;
-			CollisionParams.AddIgnoredActor(this);
+			AActor* HitActor = FiringLineTrace();
 
-			FHitResult HitResult;
-			bool bHit = GetWorld()->LineTraceSingleByChannel(
-				HitResult,
-				StartLocation,
-				EndLocation,
-				TraceChannel,
-				CollisionParams
-			);
-			if (bHit)
+			if (!AutoFireTimerHandle.IsValid())
 			{
-				AActor* HitActor = HitResult.GetActor();
-				if (HitActor)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Hit actor: %s"), *HitActor->GetName());
-				}
+				GetWorld()->GetTimerManager().SetTimer(AutoFireTimerHandle, this, &AUPlayerCharacter::AutoFire, Cur_WeaponData->FireRate, true);
 			}
-
-			
-			if (RecoilTimeline && RecoilCurve)
-			{
-				RecoilTimeline->SetPlayRate(1 / Cur_WeaponData->RecoilLength);
-
-				RecoilTimeline->PlayFromStart();
-				RecoilAnimationTimeline->PlayFromStart();
-			}
-			
 
 			return;
 		}
 
+		if (Cur_WeaponData->FiringType == FireType::SingleFire) 
+		{
+			AActor* HitActor = FiringLineTrace();
+
+			Recoil();
+			
+			return;
+		}
 	}
 }
+
+void AUPlayerCharacter::StoppedShooting()
+{
+	if (Cur_WeaponData->FiringType != FireType::Automatic)
+	{
+		return;
+	}
+
+	if (AutoFireTimerHandle.IsValid()) {
+		UE_LOG(LogTemp, Warning, TEXT("AutoFireTimerHandle Cleared!"));
+		GetWorld()->GetTimerManager().ClearTimer(AutoFireTimerHandle);
+	}
+}
+
+
+void AUPlayerCharacter::GetWeaponStats()
+{
+	if (WeaponDataTable)
+	{
+		FName rowName = FName(*FString::FromInt(WeaponIndex));
+		Cur_WeaponData = WeaponDataTable->FindRow<FUWeaponData>(rowName, TEXT(""));
+		if (Cur_WeaponData)
+		{
+			WeaponMesh->SetSkeletalMeshAsset(Cur_WeaponData->TargetWeaponMesh);
+			WeaponMesh->SetRelativeTransform(Cur_WeaponData->Transform);
+		}
+	}
+}
+
+void AUPlayerCharacter::AutoFire()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Auto Firing!"));
+
+	Recoil();
+
+}
+
+void AUPlayerCharacter::Reload()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Reloading!"));
+
+}
+
+AActor* AUPlayerCharacter::FiringLineTrace()
+{
+	FVector StartLocation = ViewCamera->GetComponentLocation();
+	FVector EndLocation = ViewCamera->GetForwardVector() * Cur_WeaponData->FireMaxRange + ViewCamera->GetComponentLocation();
+	ECollisionChannel TraceChannel = ECC_Visibility;
+	FCollisionQueryParams CollisionParams;
+	CollisionParams.bTraceComplex = true;
+	CollisionParams.AddIgnoredActor(this);
+
+	FHitResult HitResult;
+	bool bHit = GetWorld()->LineTraceSingleByChannel(
+		HitResult,
+		StartLocation,
+		EndLocation,
+		TraceChannel,
+		CollisionParams
+	);
+	if (bHit)
+	{
+		AActor* HitActor = HitResult.GetActor();
+		if (HitActor)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Hit actor: %s"), *HitActor->GetName());
+			return HitActor;
+		}
+	}
+
+	return nullptr;
+}
+
+#pragma region Recoil Functions
 
 void AUPlayerCharacter::UpdateRecoil(float Value)
 {
@@ -198,61 +218,47 @@ void AUPlayerCharacter::UpdateRecoil(float Value)
 
 	PlayerController->SetControlRotation(TargetRotation);
 	AddControllerYawInput(FMath::RandRange(-Cur_WeaponData->RecoilYaw, Cur_WeaponData->RecoilYaw));
-
 }
 
 void AUPlayerCharacter::UpdateRecoilAnimation(float Value)
 {
 	SetRecoilVariables();
 
-	RecoilAnimation(RecoilAnimCurve->GetFloatValue(Value));
-
-	if (RecoilAnimationTimeline->GetPlaybackPosition() >= RecoilAnimationTimeline->GetTimelineLength()) {
-		bVariablesSet = false;
-		UE_LOG(LogTemp, Warning, TEXT("Recoil Animation Finished!"));
-	}
-}
-
-void AUPlayerCharacter::TimelineAnimFinished()
-{
-	bVariablesSet = true;
-}
-
-
-void AUPlayerCharacter::Reload()
-{
-	UE_LOG(LogTemp, Warning, TEXT("Reloading!"));
+	RecoilAnimation(Value);
 
 }
 
-void AUPlayerCharacter::GetWeaponStats()
+void AUPlayerCharacter::RecoilTimelineAnimFinished()
 {
-	if (WeaponDataTable) 
+	bVariablesSet = false;
+	UE_LOG(LogTemp, Warning, TEXT("Recoil Animation Finished!"));
+}
+
+void AUPlayerCharacter::Recoil()
+{
+	if (RecoilTimeline && RecoilCurve)
 	{
-		FName rowName = FName(*FString::FromInt(WeaponIndex));
-		Cur_WeaponData = WeaponDataTable->FindRow<FUWeaponData>(rowName, TEXT(""));
-		if (Cur_WeaponData)
-		{
-			WeaponMesh->SetSkeletalMeshAsset(Cur_WeaponData->TargetWeaponMesh);
-			WeaponMesh->SetRelativeTransform(Cur_WeaponData->Transform);
-		}
-		
+		RecoilTimeline->SetPlayRate(1 / Cur_WeaponData->RecoilLength);
+
+		RecoilTimeline->PlayFromStart();
+		RecoilAnimationTimeline->PlayFromStart();
 	}
 }
 
 void AUPlayerCharacter::SetRecoilVariables()
 {
-	if (bVariablesSet == true) return;
-
-	if (WeaponDataTable) {
-		PreRecoilRotation = WeaponMesh->GetRelativeRotation().Roll;
-		RecoilRotAmount = WeaponMesh->GetRelativeRotation().Roll + -Cur_WeaponData->RecoilAmount;
-
-		PreRecoilLocation = WeaponMesh->GetRelativeLocation().X;
-		RecoilLocationAmount = WeaponMesh->GetRelativeLocation().X + -Cur_WeaponData->PullBackAmount;
-
-		bVariablesSet = true;
+	if (bVariablesSet == true) 
+	{
+		return;
 	}
+
+	PreRecoilRotation = WeaponMesh->GetRelativeRotation().Roll;
+	RecoilRotAmount = WeaponMesh->GetRelativeRotation().Roll + -Cur_WeaponData->RecoilAmount;
+
+	PreRecoilLocation = WeaponMesh->GetRelativeLocation().X;
+	RecoilLocationAmount = WeaponMesh->GetRelativeLocation().X + -Cur_WeaponData->PullBackAmount;
+
+	bVariablesSet = true;
 }
 
 void AUPlayerCharacter::RecoilAnimation(float Alpha)
@@ -261,16 +267,18 @@ void AUPlayerCharacter::RecoilAnimation(float Alpha)
 	(
 		WeaponMesh->GetRelativeRotation().Pitch,
 		WeaponMesh->GetRelativeRotation().Yaw,
-		FMath::Lerp(PreRecoilRotation, RecoilRotAmount, RecoilAnimCurve->GetFloatValue(Alpha))
+		FMath::Lerp(PreRecoilRotation, RecoilRotAmount, Alpha)
 	);
 	WeaponMesh->SetRelativeRotation(TargetRotation);
 
 	FVector TargetLocation = FVector
 	(
-		FMath::Lerp(PreRecoilLocation, RecoilLocationAmount, RecoilAnimCurve->GetFloatValue(Alpha)),
+		FMath::Lerp(PreRecoilLocation, RecoilLocationAmount, Alpha),
 		WeaponMesh->GetRelativeLocation().Y,
 		WeaponMesh->GetRelativeLocation().Z
 	);
 	WeaponMesh->SetRelativeLocation(TargetLocation);
 }
+
+#pragma endregion
 

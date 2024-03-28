@@ -68,21 +68,10 @@ public:
 	AUPlayerCharacter();
 
 protected:
-	UPROPERTY(EditDefaultsOnly, Category = "Recoil")
-		UCurveFloat* RecoilCurve;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Recoil")
-		UCurveFloat* RecoilAnimCurve;
-
 	virtual void BeginPlay() override;
 
 private:
 
-	UPROPERTY()
-		UTimelineComponent* RecoilTimeline;
-
-	UPROPERTY()
-		UTimelineComponent* RecoilAnimationTimeline;
 
 	UPROPERTY(visibleAnywhere, Category = "View")
 		UCameraComponent* ViewCamera;
@@ -90,12 +79,6 @@ private:
 	UPROPERTY(visibleAnywhere, Category = "Weapon")
 		USkeletalMeshComponent* WeaponMesh;
 
-	UFUNCTION()
-		void UpdateRecoil(float Value);
-	UFUNCTION()
-		void UpdateRecoilAnimation(float Value);
-	UFUNCTION()
-		void TimelineAnimFinished();
 
 
 	/*****************************************************/
@@ -124,9 +107,7 @@ private:
 
 	UFUNCTION()
 		void Look(const FInputActionValue& InputValue);
-		
-	UFUNCTION()
-		void Shoot();
+
 
 	UFUNCTION()
 		void Reload();
@@ -136,6 +117,18 @@ private:
 	/*****************************************************/
 	/*                      Weapon                       */
 	/*****************************************************/
+
+	UFUNCTION()
+		void Shoot();
+	UFUNCTION()
+		void StoppedShooting();
+
+	UFUNCTION()
+		AActor* FiringLineTrace();
+	UFUNCTION()
+		void GetWeaponStats();
+	UFUNCTION()
+		void AutoFire();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 		int32 WeaponIndex;
@@ -155,11 +148,30 @@ private:
 		float RecoilLocationAmount;
 
 	UFUNCTION()
-		void GetWeaponStats();
+		void Recoil();
 	UFUNCTION()
 		void SetRecoilVariables();
 	UFUNCTION()
 		void RecoilAnimation(float Alpha);
+	UFUNCTION()
+		void UpdateRecoil(float Value);
+	UFUNCTION()
+		void UpdateRecoilAnimation(float Value);
+	UFUNCTION()
+		void RecoilTimelineAnimFinished();
+
+	UPROPERTY()
+		UTimelineComponent* RecoilTimeline;
+	UPROPERTY()
+		UTimelineComponent* RecoilAnimationTimeline;
+	UPROPERTY(EditDefaultsOnly, Category = "Recoil")
+		UCurveFloat* RecoilCurve;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Recoil")
+		UCurveFloat* RecoilAnimCurve;
+
+	FTimerHandle AutoFireTimerHandle;
+
 
 	bool bVariablesSet = false;
 
