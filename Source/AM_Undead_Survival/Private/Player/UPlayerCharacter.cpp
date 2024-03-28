@@ -4,6 +4,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/TimelineComponent.h"
 
+#include "DrawDebugHelpers.h"
+
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 
@@ -26,12 +28,18 @@ AUPlayerCharacter::AUPlayerCharacter()
 
 	RecoilTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("RecoilTimeline"));
 	RecoilAnimationTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("RecoilAnimationTimeline"));
+	AimAnimationTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("AimAnimationTimeline"));
 
 	bUseControllerRotationYaw = false;
 
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(1080.f);
 	GetCharacterMovement()->JumpZVelocity = 600.f;
+}
+
+void AUPlayerCharacter::UpdateAmmo(int32 NewAmmo, int32 NewTotalAmmo)
+{
+	OnAmmoChanged.Broadcast(NewAmmo, NewTotalAmmo);
 }
 
 void AUPlayerCharacter::BeginPlay()
@@ -48,7 +56,13 @@ void AUPlayerCharacter::BeginPlay()
 
 	RecoilAnimationTimeline->SetTimelineFinishedFunc(FOnTimelineEventStatic::CreateUFunction(this, FName("RecoilTimelineAnimFinished")));
 
-	GetWeaponStats();
+	FOnTimelineFloat AimAnimTimelineCallback;
+	AimAnimTimelineCallback.BindUFunction(this, FName("UpdateAimAnimation"));
+	AimAnimationTimeline->AddInterpFloat(AimAnimCurve, AimAnimTimelineCallback);
+
+	SetWeaponStats();
+
+	WeaponStartingLocation = WeaponMesh->GetRelativeLocation();
 }
 
 void AUPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -73,7 +87,10 @@ void AUPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		enhancedInputComp->BindAction(LookInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Look);
 		enhancedInputComp->BindAction(JumpInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Jump);
 
-		enhancedInputComp->BindAction(ShootInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Shoot);
+		enhancedInputComp->BindAction(AimInputAction, ETriggerEvent::Started, this, &AUPlayerCharacter::Aim);
+		enhancedInputComp->BindAction(AimInputAction, ETriggerEvent::Completed, this, &AUPlayerCharacter::UnAim);
+
+		enhancedInputComp->BindAction(ShootInputAction, ETriggerEvent::Started, this, &AUPlayerCharacter::Shoot);
 		enhancedInputComp->BindAction(ShootInputAction, ETriggerEvent::Completed, this, &AUPlayerCharacter::StoppedShooting);
 
 		enhancedInputComp->BindAction(ReloadInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Reload);
@@ -98,12 +115,15 @@ void AUPlayerCharacter::Look(const FInputActionValue& InputValue)
 
 void AUPlayerCharacter::Shoot()
 {
-	if (Cur_WeaponData) 
+	if (!Cur_WeaponData) 
+	{
+		return;
+	}
+
+	if (AmmoClipCur > 0)
 	{
 		if (Cur_WeaponData->FiringType == FireType::Automatic)
 		{
-			AActor* HitActor = FiringLineTrace();
-
 			if (!AutoFireTimerHandle.IsValid())
 			{
 				GetWorld()->GetTimerManager().SetTimer(AutoFireTimerHandle, this, &AUPlayerCharacter::AutoFire, Cur_WeaponData->FireRate, true);
@@ -112,13 +132,35 @@ void AUPlayerCharacter::Shoot()
 			return;
 		}
 
-		if (Cur_WeaponData->FiringType == FireType::SingleFire) 
+		if (Cur_WeaponData->FiringType == FireType::SingleFire)
 		{
-			AActor* HitActor = FiringLineTrace();
+			if (bWeaponDelay == false) {
+				AActor* HitActor = FiringLineTrace();
 
-			Recoil();
-			
+				bWeaponDelay = true;
+			}
+
+			if (!WeaponDelayTimerHandle.IsValid())
+			{
+				GetWorld()->GetTimerManager().SetTimer(WeaponDelayTimerHandle, this, &AUPlayerCharacter::ToggleWeaponDelay, WeaponDelayRate, false, -Cur_WeaponData->FireRate);
+			}
+
 			return;
+		}
+	}
+}
+
+void AUPlayerCharacter::DecrementClipAmmo()
+{
+	if (Cur_WeaponData) {
+		if (AmmoClipCur > 0) 
+		{
+			AmmoClipCur = FMath::Clamp(AmmoClipCur - 1, 0, Cur_WeaponData->AmmoClipMax);
+			UpdateAmmo(AmmoClipCur, AmmoTotalCur);
+		}
+		else 
+		{
+			StoppedShooting();
 		}
 	}
 }
@@ -136,8 +178,35 @@ void AUPlayerCharacter::StoppedShooting()
 	}
 }
 
+void AUPlayerCharacter::Aim()
+{
+	bIsAiming = true;
+	AimAnimationTimeline->Play();
+}
 
-void AUPlayerCharacter::GetWeaponStats()
+void AUPlayerCharacter::UnAim()
+{
+	bIsAiming = false;
+	AimAnimationTimeline->Reverse();
+}
+
+
+
+void AUPlayerCharacter::UpdateAimAnimation(float Value)
+{
+	FVector AimLocation = FVector
+	(
+		-WeaponMesh->GetSocketTransform(FName("Aim_Socket"), ERelativeTransformSpace::RTS_ParentBoneSpace).GetLocation().Z,
+		0,
+		WeaponMesh->GetSocketTransform(FName("Aim_Socket"), ERelativeTransformSpace::RTS_ParentBoneSpace).GetLocation().Y
+	);
+	FVector TargetLocation = FMath::Lerp(WeaponStartingLocation, AimLocation, Value);
+	WeaponMesh->SetRelativeLocation(TargetLocation);
+
+	ViewCamera->SetFieldOfView(FMath::Lerp(90, Cur_WeaponData->AimFOV, Value));
+}
+
+void AUPlayerCharacter::SetWeaponStats()
 {
 	if (WeaponDataTable)
 	{
@@ -147,15 +216,25 @@ void AUPlayerCharacter::GetWeaponStats()
 		{
 			WeaponMesh->SetSkeletalMeshAsset(Cur_WeaponData->TargetWeaponMesh);
 			WeaponMesh->SetRelativeTransform(Cur_WeaponData->Transform);
+
+			AmmoClipCur = Cur_WeaponData->AmmoClipMax;
+			AmmoTotalCur = Cur_WeaponData->AmmoTotalMax - Cur_WeaponData->AmmoClipMax;
 		}
 	}
 }
 
 void AUPlayerCharacter::AutoFire()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Auto Firing!"));
+	AActor* HitActor = FiringLineTrace(); // Have to line trace here due to input type
 
 	Recoil();
+
+}
+
+void AUPlayerCharacter::ToggleWeaponDelay()
+{
+	bWeaponDelay = false;
+	GetWorld()->GetTimerManager().ClearTimer(WeaponDelayTimerHandle);
 
 }
 
@@ -167,8 +246,18 @@ void AUPlayerCharacter::Reload()
 
 AActor* AUPlayerCharacter::FiringLineTrace()
 {
+	float BulletSpread = 0.0f;
+	if (!bIsAiming) {
+		BulletSpread = -Cur_WeaponData->BulletSpread;
+	}
+
 	FVector StartLocation = ViewCamera->GetComponentLocation();
-	FVector EndLocation = ViewCamera->GetForwardVector() * Cur_WeaponData->FireMaxRange + ViewCamera->GetComponentLocation();
+	FVector ForwardEndVector = ViewCamera->GetForwardVector() * Cur_WeaponData->FireMaxRange;
+	FVector RightEndVector = ViewCamera->GetRightVector() * FMath::RandRange(-BulletSpread, BulletSpread);
+	FVector UpEndVector = ViewCamera->GetUpVector() * FMath::RandRange(-BulletSpread, BulletSpread);
+	FVector TargetEndVector = ForwardEndVector + RightEndVector + UpEndVector;
+
+	FVector EndLocation = TargetEndVector;
 	ECollisionChannel TraceChannel = ECC_Visibility;
 	FCollisionQueryParams CollisionParams;
 	CollisionParams.bTraceComplex = true;
@@ -187,10 +276,20 @@ AActor* AUPlayerCharacter::FiringLineTrace()
 		AActor* HitActor = HitResult.GetActor();
 		if (HitActor)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Hit actor: %s"), *HitActor->GetName());
+			//UE_LOG(LogTemp, Warning, TEXT("Hit actor: %s"), *HitActor->GetName());
+			DrawDebugPoint(GetWorld(), HitResult.ImpactPoint, 10.0f, FColor::Red, false, 3.0f, 0);
+
+			DecrementClipAmmo();
+
+			Recoil();
+
 			return HitActor;
 		}
 	}
+
+	DecrementClipAmmo();
+
+	Recoil();
 
 	return nullptr;
 }
@@ -281,4 +380,3 @@ void AUPlayerCharacter::RecoilAnimation(float Alpha)
 }
 
 #pragma endregion
-

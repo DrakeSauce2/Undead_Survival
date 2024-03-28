@@ -47,8 +47,18 @@ struct FUWeaponData : public FTableRowBase
 		float FireMaxRange;
 	UPROPERTY(EditAnywhere)
 		float PullBackAmount;
+	UPROPERTY(EditAnywhere)
+		float AimFOV;
+	UPROPERTY(EditAnywhere)
+		int32 AmmoClipMax;
+
+	UPROPERTY(EditAnywhere)
+		int32 AmmoTotalMax;
+
 
 };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FAmmoChangedDelegate, int32, CurrentAmmo, int32, TotalAmmo);
 
 class UCameraComponent;
 class USkeletalMeshComponent;
@@ -66,6 +76,10 @@ class AUPlayerCharacter : public AUCharacterBase
 public:
 	//this is the construtor
 	AUPlayerCharacter();
+
+	FAmmoChangedDelegate OnAmmoChanged;
+
+	void UpdateAmmo(int32 NewAmmo, int32 NewTotalAmmo);
 
 protected:
 	virtual void BeginPlay() override;
@@ -102,6 +116,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 		UInputAction* ShootInputAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+		UInputAction* AimInputAction;
+
 	UFUNCTION()
 		void Move(const FInputActionValue& InputValue);
 
@@ -121,17 +138,30 @@ private:
 	UFUNCTION()
 		void Shoot();
 	UFUNCTION()
+		void DecrementClipAmmo();
+	UFUNCTION()
 		void StoppedShooting();
+	UFUNCTION()
+		void Aim();
+	UFUNCTION()
+		void UnAim();
 
 	UFUNCTION()
 		AActor* FiringLineTrace();
 	UFUNCTION()
-		void GetWeaponStats();
+		void SetWeaponStats();
 	UFUNCTION()
 		void AutoFire();
+	UFUNCTION()
+		void ToggleWeaponDelay();
+	
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 		int32 WeaponIndex;
+	UPROPERTY(EditAnywhere)
+		int32 AmmoClipCur;
+	UPROPERTY(EditAnywhere)
+		int32 AmmoTotalCur;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 		UDataTable* WeaponDataTable;
@@ -146,6 +176,8 @@ private:
 		float PreRecoilLocation;
 	UPROPERTY(EditAnywhere)
 		float RecoilLocationAmount;
+	UPROPERTY()
+		FVector WeaponStartingLocation;
 
 	UFUNCTION()
 		void Recoil();
@@ -159,20 +191,29 @@ private:
 		void UpdateRecoilAnimation(float Value);
 	UFUNCTION()
 		void RecoilTimelineAnimFinished();
+	UFUNCTION()
+		void UpdateAimAnimation(float Value);
 
 	UPROPERTY()
 		UTimelineComponent* RecoilTimeline;
 	UPROPERTY()
 		UTimelineComponent* RecoilAnimationTimeline;
-	UPROPERTY(EditDefaultsOnly, Category = "Recoil")
+	UPROPERTY()
+		UTimelineComponent* AimAnimationTimeline;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Float Curve")
 		UCurveFloat* RecoilCurve;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Recoil")
+	UPROPERTY(EditDefaultsOnly, Category = "Float Curve")
 		UCurveFloat* RecoilAnimCurve;
+	UPROPERTY(EditDefaultsOnly, Category = "Float Curve")
+		UCurveFloat* AimAnimCurve;
 
+	float WeaponDelayRate = 1.0f;
+	FTimerHandle WeaponDelayTimerHandle;
 	FTimerHandle AutoFireTimerHandle;
 
-
+	bool bIsAiming = false;
+	bool bWeaponDelay = false;
 	bool bVariablesSet = false;
 
 };

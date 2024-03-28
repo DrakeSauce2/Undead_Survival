@@ -16,7 +16,21 @@ class AUPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 	
+public:
+	virtual void OnPossess(APawn* NewPawn) override;
+
 protected:
 	virtual void BeginPlay() override;
+
+private:
+	UFUNCTION()
+		void SpawnGameplayUI();
+
+	UPROPERTY()
+		class AUPlayerCharacter* PlayerCharacter;
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+		TSubclassOf<class UGameplayUI> GameplayUIClass;
+	UPROPERTY()
+		UGameplayUI* GameplayUI;
 
 };
