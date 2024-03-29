@@ -51,10 +51,10 @@ struct FUWeaponData : public FTableRowBase
 		float AimFOV;
 	UPROPERTY(EditAnywhere)
 		int32 AmmoClipMax;
-
 	UPROPERTY(EditAnywhere)
 		int32 AmmoTotalMax;
-
+	UPROPERTY(EditAnywhere)
+		float ReloadSpeed;
 
 };
 
@@ -79,7 +79,7 @@ public:
 
 	FAmmoChangedDelegate OnAmmoChanged;
 
-	void UpdateAmmo(int32 NewAmmo, int32 NewTotalAmmo);
+	void UpdateAmmo(int32 NewCurrentAmmo, int32 NewTotalAmmo);
 
 protected:
 	virtual void BeginPlay() override;
@@ -125,15 +125,17 @@ private:
 	UFUNCTION()
 		void Look(const FInputActionValue& InputValue);
 
-
-	UFUNCTION()
-		void Reload();
-
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	/*****************************************************/
 	/*                      Weapon                       */
 	/*****************************************************/
+
+	/*
+	* I need to find a better way, other than timelines
+	*/
+	UFUNCTION()
+		void InitializeTimelines(); 
 
 	UFUNCTION()
 		void Shoot();
@@ -145,6 +147,10 @@ private:
 		void Aim();
 	UFUNCTION()
 		void UnAim();
+	UFUNCTION()
+		void Reload();
+	bool CanReload();
+
 
 	UFUNCTION()
 		AActor* FiringLineTrace();
@@ -184,6 +190,8 @@ private:
 	UFUNCTION()
 		void SetRecoilVariables();
 	UFUNCTION()
+		void SetRecoilVariablesAfterAiming();
+	UFUNCTION()
 		void RecoilAnimation(float Alpha);
 	UFUNCTION()
 		void UpdateRecoil(float Value);
@@ -193,6 +201,14 @@ private:
 		void RecoilTimelineAnimFinished();
 	UFUNCTION()
 		void UpdateAimAnimation(float Value);
+	UFUNCTION()
+		void UpdateReloadAnimation(float Value);
+	UFUNCTION()
+		void ReloadEvent();
+	UFUNCTION()
+		void ReloadEventTimelineFinished();
+	UFUNCTION()
+		void WeaponSway();
 
 	UPROPERTY()
 		UTimelineComponent* RecoilTimeline;
@@ -200,6 +216,10 @@ private:
 		UTimelineComponent* RecoilAnimationTimeline;
 	UPROPERTY()
 		UTimelineComponent* AimAnimationTimeline;
+	UPROPERTY()
+		UTimelineComponent* ReloadAnimationTimeline;
+	UPROPERTY()
+		UTimelineComponent* ReloadEventTimeline;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Float Curve")
 		UCurveFloat* RecoilCurve;
@@ -207,11 +227,20 @@ private:
 		UCurveFloat* RecoilAnimCurve;
 	UPROPERTY(EditDefaultsOnly, Category = "Float Curve")
 		UCurveFloat* AimAnimCurve;
+	UPROPERTY(EditDefaultsOnly, Category = "Float Curve")
+		UCurveFloat* ReloadAnimCurve;
+	UPROPERTY(EditDefaultsOnly, Category = "Float Curve")
+		UCurveFloat* ReloadEventCurve;
 
-	float WeaponDelayRate = 1.0f;
+	float WeaponDelayRate = 1.0f/60.0f;
+	float WeaponSwayRate = 1.0f/60.0f;
 	FTimerHandle WeaponDelayTimerHandle;
 	FTimerHandle AutoFireTimerHandle;
+	FTimerHandle WeaponSwayTimerHandle;
 
+	FVector2D LookInput;
+
+	bool bIsReloading = false;
 	bool bIsAiming = false;
 	bool bWeaponDelay = false;
 	bool bVariablesSet = false;

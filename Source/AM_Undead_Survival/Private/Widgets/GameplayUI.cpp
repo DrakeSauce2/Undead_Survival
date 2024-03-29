@@ -28,5 +28,5 @@ void UGameplayUI::AmmoUpdated(int32 NewAmmo, int32 NewTotalAmmo)
 	AmmoClipCurrentText->SetText(NewAmmoText);
 
 	FText NewTotalAmmoText = FText::Format(FText::FromString("{0}"), FText::AsNumber((int)NewTotalAmmo));
-	AmmoTotalText->SetText(NewAmmoText);
+	AmmoTotalText->SetText(NewTotalAmmoText);
 }
