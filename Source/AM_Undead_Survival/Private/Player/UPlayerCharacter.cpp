@@ -26,11 +26,11 @@ AUPlayerCharacter::AUPlayerCharacter()
 	ViewCamera = CreateDefaultSubobject<UCameraComponent>("View Camera");
 	ViewCamera->SetupAttachment(GetRootComponent());
 
-	FPS_Mesh = CreateDefaultSubobject<USkeletalMeshComponent>("FPS_Mesh");
-	FPS_Mesh->SetupAttachment(ViewCamera);
+	FPSMesh = CreateDefaultSubobject<USkeletalMeshComponent>("FPS Mesh");
+	FPSMesh->SetupAttachment(ViewCamera);
 
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>("WeaponMesh");
-	WeaponMesh->SetupAttachment(FPS_Mesh);
+	WeaponMesh->SetupAttachment(FPSMesh);
 
 
 	RecoilTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("RecoilTimeline"));
@@ -60,6 +60,8 @@ void AUPlayerCharacter::BeginPlay()
 
 	SetWeaponStats();
 	SetMaxAmmo();
+	
+	Cur_WeaponData->FPSMeshTransform = FPSMesh->GetRelativeTransform();
 
 	GetWorld()->GetTimerManager().SetTimer(WeaponSwayTimerHandle, this, &AUPlayerCharacter::WeaponSway, WeaponSwayRate, true);
 
@@ -195,51 +197,51 @@ void AUPlayerCharacter::Look(const FInputActionValue& InputValue)
 
 void AUPlayerCharacter::WeaponSway()
 {
-	float MaxSwayDegree = 15.0f;
-	float LookSwayX = LookInput.X * MaxSwayDegree;
-	float LookSwayY = LookInput.Y * MaxSwayDegree;
-	FRotator FinalRot = FRotator(-LookSwayX, LookSwayY, LookSwayY);
-	FRotator InitialRot;
+	if (!bIsAiming || !bIsReloading || !bIsSwapping)
+	{
+		float MaxSwayDegree = 15.0f;
+		float LookSwayX = LookInput.X * MaxSwayDegree;
+		float LookSwayY = LookInput.Y * MaxSwayDegree;
+		FRotator FinalRot = FRotator(-LookSwayX, LookSwayY, LookSwayY);
 
-	float DeltaTime = GetWorld()->GetDeltaSeconds();
-	FRotator TargetSwayRotator = FRotator
-	(
-		0,
-		(InitialRot.Yaw + Cur_WeaponData->Transform.Rotator().Yaw) + FinalRot.Yaw,
-		InitialRot.Pitch + FinalRot.Pitch
-	);
-	
-	float ClampSwayMax = bIsAiming ? MaxSwayDegree/2 : MaxSwayDegree;
+		FRotator InitialRot;
 
-	TargetSwayRotator.Roll = FMath::Clamp(TargetSwayRotator.Roll, -ClampSwayMax, ClampSwayMax);
-	TargetSwayRotator.Yaw = FMath::Clamp
-	(
-		TargetSwayRotator.Yaw,
-		Cur_WeaponData->Transform.Rotator().Yaw - ClampSwayMax,
-		Cur_WeaponData->Transform.Rotator().Yaw + ClampSwayMax
-	);
+		float DeltaTime = GetWorld()->GetDeltaSeconds();
+		FRotator TargetSwayRotator = FRotator
+		(
+			InitialRot.Pitch + FinalRot.Pitch,
+			(InitialRot.Yaw + Cur_WeaponData->FPSMeshTransform.Rotator().Yaw) + FinalRot.Yaw,
+			0
+		);
+		TargetSwayRotator.Pitch = FMath::Clamp(-TargetSwayRotator.Pitch, -3, 3);
+		TargetSwayRotator.Yaw = FMath::Clamp(TargetSwayRotator.Yaw, -8, 8);
 
-	WeaponMesh->SetRelativeRotation(FMath::RInterpTo(WeaponMesh->GetRelativeRotation(), TargetSwayRotator, DeltaTime, 3));
+		FRotator TargetRotator = FMath::RInterpTo(
+			FPSMesh->GetRelativeRotation(),
+			FRotator(TargetSwayRotator.Pitch, TargetSwayRotator.Yaw, 0),
+			DeltaTime,
+			3.0f
+		);
+
+		FPSMesh->SetRelativeRotation(FMath::RInterpTo(FPSMesh->GetRelativeRotation(), TargetSwayRotator, DeltaTime, 3));
+	}
+
+
+
 }
 
 void AUPlayerCharacter::EquipWeaponAnimation(float Value)
 {
 	FVector TargetLocation = FVector
 	(
-		Cur_WeaponData->Transform.GetLocation().X,
-		Cur_WeaponData->Transform.GetLocation().Y,
-		FMath::Lerp(Cur_WeaponData->Transform.GetLocation().Z - 50, Cur_WeaponData->Transform.GetLocation().Z, Value)
+		Cur_WeaponData->FPSMeshTransform.GetLocation().X,
+		Cur_WeaponData->FPSMeshTransform.GetLocation().Y,
+		FMath::Lerp(Cur_WeaponData->FPSMeshTransform.GetLocation().Z - 50, Cur_WeaponData->FPSMeshTransform.GetLocation().Z, Value)
 	);
 
-	FRotator TargetRotation = FRotator
-	(
-		Cur_WeaponData->Transform.Rotator().Pitch,
-		Cur_WeaponData->Transform.Rotator().Yaw,
-		FMath::Lerp(90, 0, Value)
-	);
 
-	FTransform TargetTransform = FTransform(TargetRotation, TargetLocation, FVector::OneVector);
-	WeaponMesh->SetRelativeTransform(TargetTransform);
+	FTransform TargetTransform = FTransform(Cur_WeaponData->FPSMeshTransform.GetRotation(), TargetLocation, FVector::OneVector);
+	FPSMesh->SetRelativeTransform(TargetTransform);
 }
 
 void AUPlayerCharacter::Equip()
@@ -254,11 +256,7 @@ void AUPlayerCharacter::UnEquip()
 
 void AUPlayerCharacter::EquipAnimationFinished()
 {
-	float PlayRate = EquipAnimationTimeline->GetPlayRate();
-	UE_LOG(LogTemp, Warning, TEXT("Play Rate: %f"), PlayRate);
-
 	float PlaybackPosition = EquipAnimationTimeline->GetPlaybackPosition();
-	UE_LOG(LogTemp, Warning, TEXT("Playback Position: %f"), PlaybackPosition);
 
 	if (PlaybackPosition == 1) {
 		bIsSwapping = false;
@@ -280,7 +278,8 @@ void AUPlayerCharacter::SetWeaponStats()
 		if (Cur_WeaponData)
 		{
 			WeaponMesh->SetSkeletalMeshAsset(Cur_WeaponData->TargetWeaponMesh);
-			WeaponMesh->SetRelativeTransform(Cur_WeaponData->Transform);
+			WeaponMesh->AttachToComponent(FPSMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, FName("Gun_Socket"));
+
 
 			UpdateAmmo(AmmoClipCur, AmmoTotalCur);
 		}
@@ -294,25 +293,33 @@ void AUPlayerCharacter::Aim()
 	if (!bIsReloading && !bIsSwapping) {
 		bIsAiming = true;
 		AimAnimationTimeline->Play();
+		GetWorld()->GetTimerManager().ClearTimer(WeaponSwayTimerHandle);
 	}
 }
 
 void AUPlayerCharacter::UnAim()
 {
 	bIsAiming = false;
+	GetWorld()->GetTimerManager().SetTimer(WeaponSwayTimerHandle, this, &AUPlayerCharacter::WeaponSway, WeaponSwayRate, true);
 	AimAnimationTimeline->Reverse();
+}
+
+FTransform AUPlayerCharacter::CalculateAimTransform() const
+{
+	FTransform WeaponMeshSocketTransform = WeaponMesh->GetSocketTransform(FName("Aim_Socket"), ERelativeTransformSpace::RTS_World);
+	FTransform FPSMeshWorldTransform = FPSMesh->GetComponentTransform();
+
+	return UKismetMathLibrary::InvertTransform(UKismetMathLibrary::MakeRelativeTransform(WeaponMeshSocketTransform, FPSMeshWorldTransform));
 }
 
 void AUPlayerCharacter::UpdateAimAnimation(float Value)
 {
-	FVector AimLocation = FVector
-	(
-		-WeaponMesh->GetSocketTransform(FName("Aim_Socket"), ERelativeTransformSpace::RTS_ParentBoneSpace).GetLocation().Z,
-		0,
-		WeaponMesh->GetSocketTransform(FName("Aim_Socket"), ERelativeTransformSpace::RTS_ParentBoneSpace).GetLocation().Y
-	);
-	FVector TargetLocation = FMath::Lerp(WeaponStartingLocation, AimLocation, Value);
-	WeaponMesh->SetRelativeLocation(TargetLocation);
+	FVector LerpedLocation = FMath::Lerp(Cur_WeaponData->FPSMeshTransform.GetLocation(), CalculateAimTransform().GetLocation(), Value);
+	FQuat LerpedRotation = FQuat::Slerp(Cur_WeaponData->FPSMeshTransform.GetRotation(), CalculateAimTransform().GetRotation(), Value);
+	FVector LerpedScale = FMath::Lerp(Cur_WeaponData->FPSMeshTransform.GetScale3D(), CalculateAimTransform().GetScale3D(), Value);
+
+	FTransform TargetTransform = FTransform(LerpedRotation, LerpedLocation, LerpedScale);
+	FPSMesh->SetRelativeTransform(TargetTransform);
 
 	ViewCamera->SetFieldOfView(FMath::Lerp(90, Cur_WeaponData->AimFOV, Value));
 }
@@ -623,41 +630,47 @@ void AUPlayerCharacter::SetRecoilVariables()
 		return;
 	}
 
-	PreRecoilRotation = WeaponMesh->GetRelativeRotation().Roll;
-	RecoilRotAmount = WeaponMesh->GetRelativeRotation().Roll + -Cur_WeaponData->RecoilAmount;
+	int RecoilModifier = bIsAiming ? 1 : 2;
+	PreRecoilRotation = FPSMesh->GetRelativeRotation().Pitch;
+	RecoilRotAmount = FPSMesh->GetRelativeRotation().Pitch + -Cur_WeaponData->RecoilAmount * RecoilModifier;
 
-	PreRecoilLocation = WeaponMesh->GetRelativeLocation().X;
-	RecoilLocationAmount = WeaponMesh->GetRelativeLocation().X + -Cur_WeaponData->PullBackAmount;
+	RecoilModifier = bIsAiming ? -0.5 : -1;
+	PreRecoilLocation = FPSMesh->GetRelativeLocation().X;
+	RecoilLocationAmount = FPSMesh->GetRelativeLocation().X + -Cur_WeaponData->PullBackAmount * RecoilModifier;
 
 	bVariablesSet = true;
 }
 
 void AUPlayerCharacter::SetRecoilVariablesAfterAiming()
 {
-	PreRecoilRotation = WeaponMesh->GetRelativeRotation().Roll;
-	RecoilRotAmount = WeaponMesh->GetRelativeRotation().Roll + -Cur_WeaponData->RecoilAmount;
+	int RecoilModifier = bIsAiming ? 1 : 2;
+	PreRecoilRotation = FPSMesh->GetRelativeRotation().Pitch;
+	RecoilRotAmount = FPSMesh->GetRelativeRotation().Pitch + -Cur_WeaponData->RecoilAmount * RecoilModifier;
 
-	PreRecoilLocation = WeaponMesh->GetRelativeLocation().X;
-	RecoilLocationAmount = WeaponMesh->GetRelativeLocation().X + -Cur_WeaponData->PullBackAmount;
+	RecoilModifier = bIsAiming ? -0.5 : -1;
+	PreRecoilLocation = FPSMesh->GetRelativeLocation().X;
+	RecoilLocationAmount = FPSMesh->GetRelativeLocation().X + -Cur_WeaponData->PullBackAmount * RecoilModifier;
+
+	FPSMeshTransformAim = FPSMesh->GetRelativeTransform();
 }
 
 void AUPlayerCharacter::RecoilAnimation(float Alpha)
 {
 	FRotator TargetRotation = FRotator
 	(
-		WeaponMesh->GetRelativeRotation().Pitch,
-		WeaponMesh->GetRelativeRotation().Yaw,
-		FMath::Lerp(PreRecoilRotation, RecoilRotAmount, Alpha)
+		FMath::Lerp(PreRecoilRotation, RecoilRotAmount, Alpha),
+		FPSMesh->GetRelativeRotation().Yaw,
+		FPSMesh->GetRelativeRotation().Roll
 	);
-	WeaponMesh->SetRelativeRotation(TargetRotation);
+	FPSMesh->SetRelativeRotation(TargetRotation);
 
 	FVector TargetLocation = FVector
 	(
 		FMath::Lerp(PreRecoilLocation, RecoilLocationAmount, Alpha),
-		WeaponMesh->GetRelativeLocation().Y,
-		WeaponMesh->GetRelativeLocation().Z
+		FPSMesh->GetRelativeLocation().Y,
+		FPSMesh->GetRelativeLocation().Z
 	);
-	WeaponMesh->SetRelativeLocation(TargetLocation);
+	FPSMesh->SetRelativeLocation(TargetLocation);
 }
 
 #pragma endregion

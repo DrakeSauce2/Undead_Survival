@@ -47,6 +47,9 @@ struct FUWeaponData : public FTableRowBase
 
 	UPROPERTY(EditAnywhere)
 		FTransform Transform;
+	UPROPERTY(EditAnywhere)
+		FTransform FPSMeshTransform;
+
 
 	UPROPERTY(EditAnywhere)
 		FireType FiringType;
@@ -121,7 +124,7 @@ private:
 	UPROPERTY(visibleAnywhere, Category = "Weapon")
 		USkeletalMeshComponent* WeaponMesh;
 	UPROPERTY(visibleAnywhere, Category = "Weapon")
-		USkeletalMeshComponent* FPS_Mesh;
+		USkeletalMeshComponent* FPSMesh;
 
 
 
@@ -181,6 +184,8 @@ private:
 		void Aim();
 	UFUNCTION()
 		void UnAim();
+	UFUNCTION()
+		FTransform CalculateAimTransform() const;
 	UFUNCTION()
 		void Reload();
 	bool CanReload();
@@ -292,6 +297,7 @@ private:
 	FTimerHandle AutoFireTimerHandle;
 	FTimerHandle WeaponSwayTimerHandle;
 
+	FTransform FPSMeshTransformAim;
 	FVector2D LookInput;
 
 	bool bIsSwapping = false;
