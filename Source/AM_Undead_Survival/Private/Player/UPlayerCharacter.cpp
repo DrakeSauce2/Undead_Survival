@@ -357,7 +357,7 @@ void AUPlayerCharacter::Shoot()
 
 			if (!WeaponDelayTimerHandle.IsValid())
 			{
-				GetWorld()->GetTimerManager().SetTimer(WeaponDelayTimerHandle, this, &AUPlayerCharacter::ToggleWeaponDelay, WeaponDelayRate, false, -Cur_WeaponData->FireRate);
+				GetWorld()->GetTimerManager().SetTimer(WeaponDelayTimerHandle, this, &AUPlayerCharacter::ToggleWeaponDelay, WeaponDelayRate, false, Cur_WeaponData->FireRate);
 			}
 
 			return;
