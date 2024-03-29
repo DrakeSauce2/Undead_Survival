@@ -31,6 +31,7 @@ AUPlayerCharacter::AUPlayerCharacter()
 	AimAnimationTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("AimAnimationTimeline"));
 	ReloadAnimationTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("ReloadAnimationTimeline"));
 	ReloadEventTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("ReloadEventTimeline"));
+	EquipAnimationTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("EquipAnimationTimeline"));
 
 	bUseControllerRotationYaw = false;
 
@@ -51,12 +52,12 @@ void AUPlayerCharacter::BeginPlay()
 	InitializeTimelines();
 
 	SetWeaponStats();
+	SetMaxAmmo();
 
 	GetWorld()->GetTimerManager().SetTimer(WeaponSwayTimerHandle, this, &AUPlayerCharacter::WeaponSway, WeaponSwayRate, true);
 
 	WeaponStartingLocation = WeaponMesh->GetRelativeLocation();
 }
-
 
 void AUPlayerCharacter::InitializeTimelines()
 {
@@ -89,6 +90,49 @@ void AUPlayerCharacter::InitializeTimelines()
 	ReloadEventTimeline->SetLooping(false);
 	ReloadEventTimeline->SetTimelineLengthMode(ETimelineLengthMode::TL_LastKeyFrame);
 
+	FOnTimelineFloat EquipAnimTimelineCallback;
+	EquipAnimTimelineCallback.BindUFunction(this, FName("EquipWeaponAnimation"));
+	EquipAnimationTimeline->AddInterpFloat(EquipAnimCurve, EquipAnimTimelineCallback);
+	EquipAnimationTimeline->SetTimelineFinishedFunc(FOnTimelineEventStatic::CreateUFunction(this, FName("EquipAnimationFinished")));
+
+}
+
+void AUPlayerCharacter::SwitchWeaponSlot(const FInputActionValue& InputValue, int SlotNumber)
+{
+	if (WeaponSlots[SlotNumber].WeaponIndex > 0 && WeaponSlotInUse != WeaponSlots[SlotNumber].WeaponIndex && !bIsSwapping) {
+		bIsSwapping = true;
+
+		EquipAnimationTimeline->SetPlayRate(1.5f);
+
+		WeaponSlotInUse = SlotNumber;
+
+		WeaponSlots[WeaponIndex].AmmoClip = AmmoClipCur;
+		WeaponSlots[WeaponIndex].AmmoTotal = AmmoTotalCur;
+
+		StoppedShooting();
+		UnAim();
+
+		NewWeaponSlotNumber = SlotNumber;
+
+		UnEquip();
+	}
+}
+
+void AUPlayerCharacter::SetWeaponSlot(int SlotNumber)
+{
+	WeaponIndex = WeaponSlots[SlotNumber].WeaponIndex;
+	AmmoClipCur = WeaponSlots[SlotNumber].AmmoClip;
+	AmmoTotalCur = WeaponSlots[SlotNumber].AmmoTotal;
+
+	SetWeaponStats();
+}
+
+void AUPlayerCharacter::SetMaxAmmo()
+{
+	AmmoClipCur = Cur_WeaponData->AmmoClipMax;
+	AmmoTotalCur = Cur_WeaponData->AmmoTotalMax - Cur_WeaponData->AmmoClipMax;
+
+	UpdateAmmo(AmmoClipCur, AmmoTotalCur);
 }
 
 void AUPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -118,6 +162,9 @@ void AUPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 		enhancedInputComp->BindAction(ShootInputAction, ETriggerEvent::Started, this, &AUPlayerCharacter::Shoot);
 		enhancedInputComp->BindAction(ShootInputAction, ETriggerEvent::Completed, this, &AUPlayerCharacter::StoppedShooting);
+
+		enhancedInputComp->BindAction(WeaponSlotOneInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::SwitchWeaponSlot, 1);
+		enhancedInputComp->BindAction(WeaponSlotTwoInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::SwitchWeaponSlot, 2);
 
 		enhancedInputComp->BindAction(ReloadInputAction, ETriggerEvent::Triggered, this, &AUPlayerCharacter::Reload);
 	}
@@ -168,6 +215,55 @@ void AUPlayerCharacter::WeaponSway()
 	WeaponMesh->SetRelativeRotation(FMath::RInterpTo(WeaponMesh->GetRelativeRotation(), TargetSwayRotator, DeltaTime, 3));
 }
 
+void AUPlayerCharacter::EquipWeaponAnimation(float Value)
+{
+	FVector TargetLocation = FVector
+	(
+		Cur_WeaponData->Transform.GetLocation().X,
+		Cur_WeaponData->Transform.GetLocation().Y,
+		FMath::Lerp(Cur_WeaponData->Transform.GetLocation().Z - 50, Cur_WeaponData->Transform.GetLocation().Z, Value)
+	);
+
+	FRotator TargetRotation = FRotator
+	(
+		Cur_WeaponData->Transform.Rotator().Pitch,
+		Cur_WeaponData->Transform.Rotator().Yaw,
+		FMath::Lerp(90, 0, Value)
+	);
+
+	FTransform TargetTransform = FTransform(TargetRotation, TargetLocation, FVector::OneVector);
+	WeaponMesh->SetRelativeTransform(TargetTransform);
+}
+
+void AUPlayerCharacter::Equip()
+{
+	EquipAnimationTimeline->PlayFromStart();
+}
+
+void AUPlayerCharacter::UnEquip()
+{
+	EquipAnimationTimeline->ReverseFromEnd();
+}
+
+void AUPlayerCharacter::EquipAnimationFinished()
+{
+	float PlayRate = EquipAnimationTimeline->GetPlayRate();
+	UE_LOG(LogTemp, Warning, TEXT("Play Rate: %f"), PlayRate);
+
+	float PlaybackPosition = EquipAnimationTimeline->GetPlaybackPosition();
+	UE_LOG(LogTemp, Warning, TEXT("Playback Position: %f"), PlaybackPosition);
+
+	if (PlaybackPosition == 1) {
+		bIsSwapping = false;
+	}
+
+	if (PlaybackPosition == 0) {
+		SetWeaponSlot(WeaponSlotInUse);
+		Equip();
+	}
+
+}
+
 void AUPlayerCharacter::SetWeaponStats()
 {
 	if (WeaponDataTable)
@@ -179,8 +275,7 @@ void AUPlayerCharacter::SetWeaponStats()
 			WeaponMesh->SetSkeletalMeshAsset(Cur_WeaponData->TargetWeaponMesh);
 			WeaponMesh->SetRelativeTransform(Cur_WeaponData->Transform);
 
-			AmmoClipCur = Cur_WeaponData->AmmoClipMax;
-			AmmoTotalCur = Cur_WeaponData->AmmoTotalMax - Cur_WeaponData->AmmoClipMax;
+			UpdateAmmo(AmmoClipCur, AmmoTotalCur);
 		}
 	}
 }
@@ -189,7 +284,7 @@ void AUPlayerCharacter::SetWeaponStats()
 
 void AUPlayerCharacter::Aim()
 {
-	if (!bIsReloading) {
+	if (!bIsReloading && !bIsSwapping) {
 		bIsAiming = true;
 		AimAnimationTimeline->Play();
 	}
@@ -226,7 +321,7 @@ void AUPlayerCharacter::Shoot()
 		return;
 	}
 
-	if (AmmoClipCur > 0 && !bIsReloading)
+	if (AmmoClipCur > 0 && !bIsReloading && !bIsSwapping)
 	{
 		if (Cur_WeaponData->FiringType == FireType::Automatic)
 		{
@@ -286,7 +381,7 @@ void AUPlayerCharacter::ToggleWeaponDelay()
 
 AActor* AUPlayerCharacter::FiringLineTrace()
 {
-	if (bIsReloading) {
+	if (bIsReloading || bIsSwapping) {
 		return nullptr;
 	}
 
@@ -360,7 +455,7 @@ void AUPlayerCharacter::DecrementClipAmmo()
 
 void AUPlayerCharacter::Reload()
 {
-	if (CanReload() && !bIsReloading)
+	if (CanReload() && !bIsReloading && !bIsSwapping)
 	{
 		bIsReloading = true;
 

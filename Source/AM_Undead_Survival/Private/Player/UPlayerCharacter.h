@@ -20,6 +20,20 @@ enum class FireType : uint8
 };
 
 USTRUCT(BlueprintType)
+struct FUWeaponSlot
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere)
+		int WeaponIndex;
+	UPROPERTY(EditAnywhere)
+		int AmmoClip;
+	UPROPERTY(EditAnywhere)
+		int AmmoTotal;
+};
+
+USTRUCT(BlueprintType)
 struct FUWeaponData : public FTableRowBase
 {
 	GENERATED_BODY()
@@ -50,9 +64,9 @@ struct FUWeaponData : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 		float AimFOV;
 	UPROPERTY(EditAnywhere)
-		int32 AmmoClipMax;
+		int AmmoClipMax;
 	UPROPERTY(EditAnywhere)
-		int32 AmmoTotalMax;
+		int AmmoTotalMax;
 	UPROPERTY(EditAnywhere)
 		float ReloadSpeed;
 
@@ -100,24 +114,22 @@ private:
 	/*****************************************************/
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 		UInputMappingContext* inputMapping;
-
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 		UInputAction* MoveInputAction;
-
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 		UInputAction* LookInputAction;
-
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 		UInputAction* JumpInputAction;
-
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 		UInputAction* ReloadInputAction;
-
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 		UInputAction* ShootInputAction;
-
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 		UInputAction* AimInputAction;
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+		UInputAction* WeaponSlotOneInputAction;
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+		UInputAction* WeaponSlotTwoInputAction;
 
 	UFUNCTION()
 		void Move(const FInputActionValue& InputValue);
@@ -136,6 +148,12 @@ private:
 	*/
 	UFUNCTION()
 		void InitializeTimelines(); 
+	UFUNCTION()
+		void SwitchWeaponSlot(const FInputActionValue& InputValue, int SlotNumber);
+	UFUNCTION()
+		void SetWeaponSlot(int SlotNumber);
+	UFUNCTION()
+		void SetMaxAmmo();
 
 	UFUNCTION()
 		void Shoot();
@@ -161,13 +179,20 @@ private:
 	UFUNCTION()
 		void ToggleWeaponDelay();
 	
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
+		TArray<FUWeaponSlot> WeaponSlots;
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
+		int WeaponSlotInUse = 1;
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
+		int NewWeaponSlotNumber = 1;
+
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
-		int32 WeaponIndex;
+		int WeaponIndex;
 	UPROPERTY(EditAnywhere)
-		int32 AmmoClipCur;
+		int AmmoClipCur;
 	UPROPERTY(EditAnywhere)
-		int32 AmmoTotalCur;
+		int AmmoTotalCur;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 		UDataTable* WeaponDataTable;
@@ -209,6 +234,15 @@ private:
 		void ReloadEventTimelineFinished();
 	UFUNCTION()
 		void WeaponSway();
+	UFUNCTION()
+		void EquipWeaponAnimation(float Value);
+	UFUNCTION()
+		void Equip();
+	UFUNCTION()
+		void UnEquip();
+	UFUNCTION()
+		void EquipAnimationFinished();
+
 
 	UPROPERTY()
 		UTimelineComponent* RecoilTimeline;
@@ -220,6 +254,8 @@ private:
 		UTimelineComponent* ReloadAnimationTimeline;
 	UPROPERTY()
 		UTimelineComponent* ReloadEventTimeline;
+	UPROPERTY()
+		UTimelineComponent* EquipAnimationTimeline;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Float Curve")
 		UCurveFloat* RecoilCurve;
@@ -231,6 +267,8 @@ private:
 		UCurveFloat* ReloadAnimCurve;
 	UPROPERTY(EditDefaultsOnly, Category = "Float Curve")
 		UCurveFloat* ReloadEventCurve;
+	UPROPERTY(EditDefaultsOnly, Category = "Float Curve")
+		UCurveFloat* EquipAnimCurve;
 
 	float WeaponDelayRate = 1.0f/60.0f;
 	float WeaponSwayRate = 1.0f/60.0f;
@@ -240,6 +278,7 @@ private:
 
 	FVector2D LookInput;
 
+	bool bIsSwapping = false;
 	bool bIsReloading = false;
 	bool bIsAiming = false;
 	bool bWeaponDelay = false;
