@@ -10,6 +10,10 @@
 
 #include "Engine/DataTable.h"
 
+#include "Particles/ParticleSystemComponent.h" 
+
+#include "Sound/SoundCue.h"
+
 #include "UPlayerCharacter.generated.h"
 
 UENUM(BlueprintType)
@@ -69,7 +73,17 @@ struct FUWeaponData : public FTableRowBase
 		int AmmoTotalMax;
 	UPROPERTY(EditAnywhere)
 		float ReloadSpeed;
-
+	UPROPERTY(EditAnywhere)
+		class UParticleSystem* MuzzleFlash;
+	UPROPERTY(EditAnywhere)
+		class USoundCue* FireSound;
+	UPROPERTY(EditAnywhere)
+		FRotator MuzzleRotation;
+	UPROPERTY(EditAnywhere)
+		class UParticleSystem* ImpactParticle;
+	UPROPERTY(EditAnywhere)
+		class UMaterialInterface* BulletHoleDecal;
+		
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FAmmoChangedDelegate, int32, CurrentAmmo, int32, TotalAmmo);
@@ -106,6 +120,8 @@ private:
 
 	UPROPERTY(visibleAnywhere, Category = "Weapon")
 		USkeletalMeshComponent* WeaponMesh;
+	UPROPERTY(visibleAnywhere, Category = "Weapon")
+		USkeletalMeshComponent* FPS_Mesh;
 
 
 

@@ -3,6 +3,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/TimelineComponent.h"
+#include "Components/DecalComponent.h"
 
 #include "DrawDebugHelpers.h"
 
@@ -14,7 +15,9 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/BlueprintCore.h"
 
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -23,8 +26,12 @@ AUPlayerCharacter::AUPlayerCharacter()
 	ViewCamera = CreateDefaultSubobject<UCameraComponent>("View Camera");
 	ViewCamera->SetupAttachment(GetRootComponent());
 
+	FPS_Mesh = CreateDefaultSubobject<USkeletalMeshComponent>("FPS_Mesh");
+	FPS_Mesh->SetupAttachment(ViewCamera);
+
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>("WeaponMesh");
-	WeaponMesh->SetupAttachment(ViewCamera);
+	WeaponMesh->SetupAttachment(FPS_Mesh);
+
 
 	RecoilTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("RecoilTimeline"));
 	RecoilAnimationTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("RecoilAnimationTimeline"));
@@ -390,6 +397,27 @@ AActor* AUPlayerCharacter::FiringLineTrace()
 		BulletSpread = -Cur_WeaponData->BulletSpread;
 	}
 
+	FName SocketName = FName("Muzzle");
+	UGameplayStatics::SpawnEmitterAttached(
+		Cur_WeaponData->MuzzleFlash, 
+		WeaponMesh,  
+		SocketName, 
+		FVector::ZeroVector, 
+		Cur_WeaponData->MuzzleRotation,  
+		EAttachLocation::SnapToTargetIncludingScale, 
+		true  
+	);
+
+	UGameplayStatics::SpawnSoundAttached(
+		Cur_WeaponData->FireSound,
+		WeaponMesh,  
+		SocketName,  
+		FVector::ZeroVector, 
+		Cur_WeaponData->MuzzleRotation,
+		EAttachLocation::SnapToTarget,  
+		true  
+	);
+
 	FVector StartLocation = ViewCamera->GetComponentLocation();
 	FVector ForwardEndVector = ViewCamera->GetForwardVector() * Cur_WeaponData->FireMaxRange;
 	FVector RightEndVector = ViewCamera->GetRightVector() * FMath::RandRange(-BulletSpread, BulletSpread);
@@ -421,6 +449,29 @@ AActor* AUPlayerCharacter::FiringLineTrace()
 			DecrementClipAmmo();
 
 			Recoil();
+
+			FVector XVector = FVector::CrossProduct(HitResult.Normal, FVector::UpVector);
+			XVector.Normalize();
+			FRotator TargetRotation = UKismetMathLibrary::MakeRotFromX(XVector);
+
+			FTransform TargetTransform = FTransform(TargetRotation, HitResult.ImpactPoint, FVector::OneVector);
+
+			UGameplayStatics::SpawnEmitterAtLocation(
+				GetWorld(),
+				Cur_WeaponData->ImpactParticle,
+				TargetTransform
+			);
+			
+			UGameplayStatics::SpawnDecalAttached(
+				Cur_WeaponData->BulletHoleDecal,
+				FVector(5.0f, 5.0f, 5.0f),
+				HitResult.GetComponent(),
+				HitResult.BoneName,
+				HitResult.Location,
+				FRotator(TargetRotation.Pitch, TargetRotation.Yaw, FMath::RandRange(0, 360)),
+				EAttachLocation::KeepRelativeOffset,
+				60.0f
+			);
 
 			return HitActor;
 		}
