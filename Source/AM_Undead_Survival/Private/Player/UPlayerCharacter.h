@@ -53,7 +53,8 @@ struct FUWeaponData : public FTableRowBase
 
 	UPROPERTY(EditAnywhere)
 		FireType FiringType;
-
+	UPROPERTY(EditAnywhere)
+		float Damage;
 	UPROPERTY(EditAnywhere)
 		float RecoilAmount;
 	UPROPERTY(EditAnywhere)
@@ -176,6 +177,8 @@ private:
 
 	UFUNCTION()
 		void Shoot();
+	UFUNCTION()
+		void HandleDamage(AActor* TargetActor);
 	UFUNCTION()
 		void DecrementClipAmmo();
 	UFUNCTION()

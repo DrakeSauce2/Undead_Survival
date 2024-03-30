@@ -352,6 +352,8 @@ void AUPlayerCharacter::Shoot()
 			if (bWeaponDelay == false) {
 				AActor* HitActor = FiringLineTrace();
 
+				HandleDamage(HitActor);
+
 				bWeaponDelay = true;
 			}
 
@@ -365,11 +367,24 @@ void AUPlayerCharacter::Shoot()
 	}
 }
 
+void AUPlayerCharacter::HandleDamage(AActor* TargetActor)
+{
+	if (TargetActor)
+	{
+		AUCharacterBase* Target = Cast<AUCharacterBase>(TargetActor);
+		if (Target) {
+			Target->TakeDamage(Cur_WeaponData->Damage);
+		}
+	}
+}
+
 void AUPlayerCharacter::AutoFire()
 {
 	if (AmmoClipCur > 0)
 	{
 		AActor* HitActor = FiringLineTrace(); // Have to line trace here due to input type
+
+		HandleDamage(HitActor);
 	}
 }
 
@@ -435,7 +450,7 @@ AActor* AUPlayerCharacter::FiringLineTrace()
 	ECollisionChannel TraceChannel = ECC_Visibility;
 	FCollisionQueryParams CollisionParams;
 	CollisionParams.bTraceComplex = true;
-	CollisionParams.AddIgnoredActor(this);
+	CollisionParams.AddIgnoredActor(this->GetOwner());
 
 	FHitResult HitResult;
 	bool bHit = GetWorld()->LineTraceSingleByChannel(
@@ -450,7 +465,7 @@ AActor* AUPlayerCharacter::FiringLineTrace()
 		AActor* HitActor = HitResult.GetActor();
 		if (HitActor)
 		{
-			//UE_LOG(LogTemp, Warning, TEXT("Hit actor: %s"), *HitActor->GetName());
+			UE_LOG(LogTemp, Warning, TEXT("Hit actor: %s"), *HitActor->GetName());
 			DrawDebugPoint(GetWorld(), HitResult.ImpactPoint, 10.0f, FColor::Red, false, 3.0f, 0);
 
 			DecrementClipAmmo();

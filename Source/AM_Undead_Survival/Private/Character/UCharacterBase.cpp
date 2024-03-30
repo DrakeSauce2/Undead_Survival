@@ -6,26 +6,46 @@
 // Sets default values
 AUCharacterBase::AUCharacterBase()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+
 	PrimaryActorTick.bCanEverTick = true;
 
 }
 
-// Called when the game starts or when spawned
 void AUCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
-// Called every frame
-void AUCharacterBase::Tick(float DeltaTime)
+void AUCharacterBase::TakeDamage(float Damage)
 {
-	Super::Tick(DeltaTime);
+	CurrentHealth -= Damage;
 
+	UE_LOG(LogTemp, Warning, TEXT("Took %f Damage, %f Health Remaining"), Damage, CurrentHealth);
+
+	if (CurrentHealth <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Owner Has Died!"));
+		StartDeath();
+	}
 }
 
-// Called to bind functionality to input
+void AUCharacterBase::StartDeath()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Actor Has Died!"));
+	FTimerHandle DeconstructDeathTimeHandle;
+	GetWorld()->GetTimerManager().SetTimer(DeconstructDeathTimeHandle, this, &AUCharacterBase::Deconstruct, 1.0f, false, 1.0f);
+}
+
+void AUCharacterBase::SetHealth()
+{
+	CurrentHealth = MaxHealth;
+}
+
+void AUCharacterBase::Deconstruct()
+{
+	Destroy();
+}
+
 void AUCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
