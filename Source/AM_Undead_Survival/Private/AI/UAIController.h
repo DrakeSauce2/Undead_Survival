@@ -19,20 +19,20 @@ public:
 
 	virtual void BeginPlay() override;
 
-private:
-	UFUNCTION()
-		void TargetPerceptionUpdated(AActor* Target, FAIStimulus Stimulus);
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
 
+private:
 	UPROPERTY(VisibleDefaultsOnly, Category = "AI")
 		class UAIPerceptionComponent* AIPerceptionComponent;
-
 	UPROPERTY(VisibleDefaultsOnly, Category = "AI")
 		class UAISenseConfig_Sight* SightConfig;
-
 	UPROPERTY(EditDefaultsOnly, Category = "AI")
 		class UBehaviorTree* BehaviorTree;
 
 	UPROPERTY(EditDefaultsOnly, Category = "AI")
-		FName TargetBBKeyName = "Player";
+		FName TargetBBKeyName = "TargetLocation";
+
+
 
 };

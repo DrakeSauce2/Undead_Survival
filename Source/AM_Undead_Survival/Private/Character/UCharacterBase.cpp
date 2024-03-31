@@ -3,11 +3,21 @@
 
 #include "Character/UCharacterBase.h"
 
+#include "AIController.h"
+#include "BehaviorTree/BehaviorTreeComponent.h"
+
+#include "Perception/AIPerceptionStimuliSourceComponent.h"
+#include "Perception/AISense_Sight.h"
+
 // Sets default values
 AUCharacterBase::AUCharacterBase()
 {
 
 	PrimaryActorTick.bCanEverTick = true;
+
+	AIPerceptionSourceComp = CreateDefaultSubobject<UAIPerceptionStimuliSourceComponent>("AI Perception Source Comp");
+	AIPerceptionSourceComp->RegisterForSense(UAISense_Sight::StaticClass());
+	AIPerceptionSourceComp->RegisterWithPerceptionSystem();
 
 }
 
@@ -27,6 +37,11 @@ void AUCharacterBase::TakeDamage(float Damage)
 		UE_LOG(LogTemp, Warning, TEXT("Owner Has Died!"));
 		StartDeath();
 	}
+}
+
+void AUCharacterBase::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
 }
 
 void AUCharacterBase::StartDeath()
@@ -51,4 +66,5 @@ void AUCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
 }
+
 

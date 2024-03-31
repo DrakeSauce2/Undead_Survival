@@ -4,6 +4,11 @@
 #include "AI/UAIController.h"
 
 #include "BehaviorTree/BlackboardComponent.h"
+#include "BrainComponent.h"
+
+#include "GameFramework/Character.h"
+
+#include "Kismet/GameplayStatics.h"
 
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
@@ -21,31 +26,31 @@ AUAIController::AUAIController()
 	SightConfig->DetectionByAffiliation.bDetectNeutrals = false;
 
 	AIPerceptionComponent->ConfigureSense(*SightConfig);
-
 }
 
 void AUAIController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	AIPerceptionComponent->OnTargetPerceptionUpdated.AddDynamic(this, &AUAIController::TargetPerceptionUpdated);
-
 	if (BehaviorTree) 
 	{
 		RunBehaviorTree(BehaviorTree);
 	}	
+
+	AIPerceptionComponent->Activate(true);
+
+	GetBrainComponent()->StartLogic();
 }
 
-void AUAIController::TargetPerceptionUpdated(AActor* Target, FAIStimulus Stimulus)
+void AUAIController::Tick(float DeltaTime)
 {
-	if (GetBlackboardComponent())
+	Super::Tick(DeltaTime);
+
+	if (ACharacter* const Player = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0))
 	{
-		if (Stimulus.WasSuccessfullySensed())
-		{
-			if (!GetBlackboardComponent()->GetValueAsObject(TargetBBKeyName))
-			{
-				GetBlackboardComponent()->SetValueAsObject(TargetBBKeyName, Target);
-			}
-		}
+		FVector const PlayerLocation = Player->GetActorLocation();
+
+		GetBlackboardComponent()->SetValueAsVector(TargetBBKeyName, PlayerLocation);
 	}
+
 }

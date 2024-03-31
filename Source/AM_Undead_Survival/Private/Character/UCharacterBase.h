@@ -21,6 +21,9 @@ public:
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -35,5 +38,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Health")
 		float MaxHealth;
 		
+	UPROPERTY(VisibleDefaultsOnly, Category = "AI")
+		class UAIPerceptionStimuliSourceComponent* AIPerceptionSourceComp;
 
 };
