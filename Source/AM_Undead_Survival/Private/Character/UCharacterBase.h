@@ -21,6 +21,8 @@ public:
 
 	void TakeDamage(float Damage);
 
+	virtual void DoMeleeAttack();
+
 	virtual void SetHealth(float MaxHealth);
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;

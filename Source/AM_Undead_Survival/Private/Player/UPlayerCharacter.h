@@ -116,6 +116,8 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	virtual void StartDeath() override;
+
 private:
 
 
@@ -223,6 +225,7 @@ private:
 
 	FUWeaponData* Cur_WeaponData;
 
+	float PreReloadHeight;
 	UPROPERTY(EditAnywhere)
 		float PreRecoilRotation;
 	UPROPERTY(EditAnywhere)

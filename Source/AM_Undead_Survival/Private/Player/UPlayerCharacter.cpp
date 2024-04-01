@@ -68,6 +68,11 @@ void AUPlayerCharacter::BeginPlay()
 	WeaponStartingLocation = WeaponMesh->GetRelativeLocation();
 }
 
+void AUPlayerCharacter::StartDeath()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Player Is Dead!"));
+}
+
 void AUPlayerCharacter::InitializeTimelines()
 {
 	FOnTimelineFloat RecoilTimelineCallback;
@@ -538,6 +543,8 @@ void AUPlayerCharacter::Reload()
 		ReloadAnimationTimeline->SetPlayRate(1 / Cur_WeaponData->ReloadSpeed);
 		ReloadEventTimeline->SetPlayRate(1 / Cur_WeaponData->ReloadSpeed);
 
+		PreReloadHeight = FPSMesh->GetRelativeLocation().Z;
+
 		ReloadAnimationTimeline->PlayFromStart();
 		ReloadEventTimeline->PlayFromStart();
 	}
@@ -545,13 +552,11 @@ void AUPlayerCharacter::Reload()
 
 void AUPlayerCharacter::UpdateReloadAnimation(float Value)
 {
-	float PreReloadHeight = FPSMesh->GetRelativeLocation().Z;
-
 	FVector TargetLocation = FVector
 	(
 		FPSMesh->GetRelativeLocation().X,
 		FPSMesh->GetRelativeLocation().Y,
-		FMath::Lerp(PreReloadHeight, PreReloadHeight - 5.0f, Value)
+		FMath::Lerp(PreReloadHeight, PreReloadHeight - 15.0f, Value)
 	);
 
 	FPSMesh->SetRelativeLocation(TargetLocation);
