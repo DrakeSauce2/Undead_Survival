@@ -6,8 +6,6 @@
 #include "Components/ActorComponent.h"
 #include "UHealthComponent.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDead);
-
 UCLASS( ClassGroup=(Custom) )
 class UUHealthComponent : public UActorComponent
 {
@@ -15,8 +13,6 @@ class UUHealthComponent : public UActorComponent
 
 public:	
 	UUHealthComponent();
-
-	FOnDead OnDead;
 
 	void TakeDamage(float Damage);
 	void Heal(float AmountToHeal);

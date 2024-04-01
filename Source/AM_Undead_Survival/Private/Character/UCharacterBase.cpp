@@ -34,8 +34,8 @@ void AUCharacterBase::TakeDamage(float Damage)
 
 	if (CurrentHealth <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Owner Has Died!"));
 		StartDeath();
+		return;
 	}
 }
 
@@ -46,14 +46,18 @@ void AUCharacterBase::Tick(float DeltaTime)
 
 void AUCharacterBase::StartDeath()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Actor Has Died!"));
-	FTimerHandle DeconstructDeathTimeHandle;
-	GetWorld()->GetTimerManager().SetTimer(DeconstructDeathTimeHandle, this, &AUCharacterBase::Deconstruct, 1.0f, false, 1.0f);
+	if (bIsDead == true) return;
+
+	bIsDead = true;
+
+	OnDead.Broadcast();
+
+	Deconstruct();
 }
 
-void AUCharacterBase::SetHealth()
+void AUCharacterBase::SetHealth(float NewMaxHealth)
 {
-	CurrentHealth = MaxHealth;
+	CurrentHealth = NewMaxHealth;
 }
 
 void AUCharacterBase::Deconstruct()

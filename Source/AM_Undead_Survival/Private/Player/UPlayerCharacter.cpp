@@ -545,14 +545,16 @@ void AUPlayerCharacter::Reload()
 
 void AUPlayerCharacter::UpdateReloadAnimation(float Value)
 {
-	FRotator TargetRotation = FRotator
+	float PreReloadHeight = FPSMesh->GetRelativeLocation().Z;
+
+	FVector TargetLocation = FVector
 	(
-		0,
-		Cur_WeaponData->Transform.Rotator().Yaw,
-		FMath::Lerp(0.0f, 90.0f, Value)
+		FPSMesh->GetRelativeLocation().X,
+		FPSMesh->GetRelativeLocation().Y,
+		FMath::Lerp(PreReloadHeight, PreReloadHeight - 5.0f, Value)
 	);
 
-	WeaponMesh->SetRelativeRotation(TargetRotation);
+	FPSMesh->SetRelativeLocation(TargetLocation);
 }
 
 void AUPlayerCharacter::ReloadEvent()

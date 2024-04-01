@@ -7,7 +7,7 @@
 #include "Framework/UHealthComponent.h"
 #include "UCharacterBase.generated.h"
 
-class UUHealthComponent;
+DECLARE_MULTICAST_DELEGATE(FOnDead);
 
 UCLASS()
 class AUCharacterBase : public ACharacter
@@ -17,7 +17,11 @@ class AUCharacterBase : public ACharacter
 public:
 	AUCharacterBase();
 
+	FOnDead OnDead;
+
 	void TakeDamage(float Damage);
+
+	virtual void SetHealth(float MaxHealth);
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
@@ -29,8 +33,6 @@ protected:
 
 	virtual void StartDeath();
 
-	virtual void SetHealth();
-
 private:
 	void Deconstruct();
 	UPROPERTY(EditDefaultsOnly, Category = "Health")
@@ -40,5 +42,7 @@ private:
 		
 	UPROPERTY(VisibleDefaultsOnly, Category = "AI")
 		class UAIPerceptionStimuliSourceComponent* AIPerceptionSourceComp;
+
+	bool bIsDead = false;
 
 };

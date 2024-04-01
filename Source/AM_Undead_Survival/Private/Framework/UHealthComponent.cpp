@@ -17,7 +17,6 @@ void UUHealthComponent::TakeDamage(float Damage)
 	if (CurrentHealth <= 0) 
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Owner Has Died!"));
-		OnDead.Broadcast();
 	}
 }
 

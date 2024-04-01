@@ -17,15 +17,22 @@ class UGameplayUI : public UUserWidget
 public:
 	virtual void NativeConstruct() override;
 
-	void SetOwningPlayerCharacter(class AUPlayerCharacter* OwningPlayerCharacter); // his is my short term solution(Hopefully), Since I'm bad at coding
+	void SetOwningPlayerCharacter(class AUPlayerCharacter* OwningPlayerCharacter);
+
+	void SetupRoundChangedDelegate(class AUEnemyRoundSpawner* EnemyRoundSpawner);
 
 private:
 	UFUNCTION()
 		void AmmoUpdated(int32 NewAmmo, int32 NewTotalAmmo);
+	UFUNCTION()
+		void RoundUpdated(int32 NewRound);
 	UPROPERTY(meta = (BindWidget))
 		class UTextBlock* AmmoClipCurrentText;
 	UPROPERTY(meta = (BindWidget))
 		class UTextBlock* AmmoTotalText;
+	UPROPERTY(meta = (BindWidget))
+		class UTextBlock* RoundCountText;
+
 	UPROPERTY()
 		class AUPlayerCharacter* PlayerCharacter;
 

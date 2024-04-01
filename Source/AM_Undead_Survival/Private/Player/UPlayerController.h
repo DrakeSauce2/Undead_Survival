@@ -8,6 +8,7 @@
 
 class UInputMappingContext;
 class UInputAction;
+class UGameplayUI;
 /**
  * 
  */
@@ -18,6 +19,8 @@ class AUPlayerController : public APlayerController
 	
 public:
 	virtual void OnPossess(APawn* NewPawn) override;
+
+	UGameplayUI* GetGameplayUI() { return GameplayUI; }
 
 protected:
 	virtual void BeginPlay() override;
