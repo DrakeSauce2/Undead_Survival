@@ -14,6 +14,7 @@ void UGameplayUI::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	EndText->SetVisibility(ESlateVisibility::Hidden);
 }
 
 void UGameplayUI::SetOwningPlayerCharacter(AUPlayerCharacter* OwningPlayerCharacter)
@@ -22,6 +23,7 @@ void UGameplayUI::SetOwningPlayerCharacter(AUPlayerCharacter* OwningPlayerCharac
 	if (PlayerCharacter)
 	{
 		PlayerCharacter->OnAmmoChanged.AddDynamic(this, &UGameplayUI::AmmoUpdated);
+		PlayerCharacter->OnPlayerDead.AddUObject(this, &UGameplayUI::GameOver);
 	}
 }
 
@@ -46,4 +48,13 @@ void UGameplayUI::RoundUpdated(int32 NewRound)
 {
 	FText NewRoundCountText = FText::Format(FText::FromString("Round: {0}"), FText::AsNumber((int)NewRound));
 	RoundCountText->SetText(NewRoundCountText);
+
+	CurrentRound = NewRound;
+}
+
+void UGameplayUI::GameOver()
+{
+	EndText->SetVisibility(ESlateVisibility::Visible);
+	FText GameOverText = FText::Format(FText::FromString("You Survived {0} Rounds"), FText::AsNumber((int)CurrentRound));
+	EndText->SetText(GameOverText);
 }

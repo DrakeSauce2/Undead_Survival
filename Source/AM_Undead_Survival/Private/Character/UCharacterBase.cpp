@@ -50,10 +50,6 @@ void AUCharacterBase::Tick(float DeltaTime)
 
 void AUCharacterBase::StartDeath()
 {
-	if (bIsDead == true) return;
-
-	bIsDead = true;
-
 	OnDead.Broadcast();
 
 	Deconstruct();
@@ -67,6 +63,21 @@ void AUCharacterBase::SetHealth(float NewMaxHealth)
 void AUCharacterBase::Deconstruct()
 {
 	Destroy();
+}
+
+void AUCharacterBase::RegenHealth()
+{
+	CurrentHealth = FMath::Clamp(CurrentHealth + 0.5f, 0, MaxHealth);
+
+	UE_LOG(LogTemp, Warning, TEXT("Current Health Healed: %f"), CurrentHealth);
+
+	if (CurrentHealth >= MaxHealth) 
+	{
+		if (HealTimer.IsValid())
+		{
+			GetWorld()->GetTimerManager().ClearTimer(HealTimer);
+		}
+	}
 }
 
 void AUCharacterBase::DoMeleeAttack()

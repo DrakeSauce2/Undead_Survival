@@ -91,6 +91,8 @@ struct FUWeaponData : public FTableRowBase
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FAmmoChangedDelegate, int32, CurrentAmmo, int32, TotalAmmo);
+DECLARE_MULTICAST_DELEGATE(FOnPlayerDead);
+
 
 class UCameraComponent;
 class USkeletalMeshComponent;
@@ -110,8 +112,11 @@ public:
 	AUPlayerCharacter();
 
 	FAmmoChangedDelegate OnAmmoChanged;
+	FOnPlayerDead OnPlayerDead;
 
 	void UpdateAmmo(int32 NewCurrentAmmo, int32 NewTotalAmmo);
+
+	virtual void TakeDamage(float Damage) override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -120,6 +125,8 @@ protected:
 
 private:
 
+	FTimerHandle GameOverTimer;
+	void GameOver();
 
 	UPROPERTY(visibleAnywhere, Category = "View")
 		UCameraComponent* ViewCamera;

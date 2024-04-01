@@ -19,13 +19,15 @@ public:
 
 	FOnDead OnDead;
 
-	void TakeDamage(float Damage);
+	virtual void TakeDamage(float Damage);
 
 	virtual void DoMeleeAttack();
 
 	virtual void SetHealth(float MaxHealth);
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	bool GetIsDead() { return CurrentHealth <= 0; }
 
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -34,6 +36,11 @@ protected:
 	virtual void BeginPlay() override;
 
 	virtual void StartDeath();
+
+	void RegenHealth();
+
+	float HealRate = 1.0f/ 60.0f;
+	FTimerHandle HealTimer;
 
 private:
 	void Deconstruct();
@@ -44,7 +51,5 @@ private:
 		
 	UPROPERTY(VisibleDefaultsOnly, Category = "AI")
 		class UAIPerceptionStimuliSourceComponent* AIPerceptionSourceComp;
-
-	bool bIsDead = false;
 
 };

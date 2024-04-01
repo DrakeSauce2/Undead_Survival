@@ -9,11 +9,14 @@
 
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
+#include "Engine/LevelStreaming.h"
 
 #include "Engine/World.h"
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/BlueprintCore.h"
+
+#include "Framework/UGameMode.h"
 
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -52,6 +55,23 @@ void AUPlayerCharacter::UpdateAmmo(int32 NewAmmo, int32 NewTotalAmmo)
 	OnAmmoChanged.Broadcast(NewAmmo, NewTotalAmmo);
 }
 
+void AUPlayerCharacter::TakeDamage(float Damage)
+{
+	Super::TakeDamage(Damage);
+
+	if (!GetIsDead())
+	{
+		GetWorld()->GetTimerManager().SetTimer(HealTimer, this, &AUPlayerCharacter::RegenHealth, HealRate, true, 2.0f);
+	}
+	else
+	{
+		if (HealTimer.IsValid())
+		{
+			GetWorld()->GetTimerManager().ClearTimer(HealTimer);
+		}
+	}
+}
+
 void AUPlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
@@ -64,13 +84,35 @@ void AUPlayerCharacter::BeginPlay()
 	Cur_WeaponData->FPSMeshTransform = FPSMesh->GetRelativeTransform();
 
 	GetWorld()->GetTimerManager().SetTimer(WeaponSwayTimerHandle, this, &AUPlayerCharacter::WeaponSway, WeaponSwayRate, true);
-
-	WeaponStartingLocation = WeaponMesh->GetRelativeLocation();
 }
 
 void AUPlayerCharacter::StartDeath()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Player Is Dead!"));
+
+	OnPlayerDead.Broadcast();
+
+	APlayerController* PlayerController = GetController<APlayerController>();
+	if (PlayerController) {
+		DisableInput(PlayerController);
+	}
+
+	FPSMesh->SetSkeletalMesh(nullptr);
+	WeaponMesh->SetSkeletalMesh(nullptr);
+
+	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
+	
+	if (GameOverTimer.IsValid()) return;
+
+	GetWorld()->GetTimerManager().SetTimer(GameOverTimer, this, &AUPlayerCharacter::GameOver, 1.0f/24.0f, false, 3.0f);
+}
+
+void AUPlayerCharacter::GameOver()
+{
+	APlayerController* PlayerController = GetController<APlayerController>();
+	if (PlayerController) {
+		PlayerController->RestartLevel();
+	}
 }
 
 void AUPlayerCharacter::InitializeTimelines()
@@ -155,15 +197,11 @@ void AUPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 	APlayerController* PlayerController = GetController<APlayerController>();
 	if (PlayerController) {
-		UE_LOG(LogTemp, Warning, TEXT("Player Character Has Player Controller!"));
 		UEnhancedInputLocalPlayerSubsystem* InputSubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer());
 		InputSubsystem->ClearAllMappings();
 		InputSubsystem->AddMappingContext(inputMapping, 0);
 	}
-	else {
-		UE_LOG(LogTemp, Warning, TEXT("No Player Controller On Player Character!"));
-	}
-	
+
 	UEnhancedInputComponent* enhancedInputComp = Cast<UEnhancedInputComponent>(PlayerInputComponent);
 	if (enhancedInputComp)
 	{

@@ -26,13 +26,18 @@ private:
 		void AmmoUpdated(int32 NewAmmo, int32 NewTotalAmmo);
 	UFUNCTION()
 		void RoundUpdated(int32 NewRound);
+	UFUNCTION()
+		void GameOver();
 	UPROPERTY(meta = (BindWidget))
 		class UTextBlock* AmmoClipCurrentText;
 	UPROPERTY(meta = (BindWidget))
 		class UTextBlock* AmmoTotalText;
 	UPROPERTY(meta = (BindWidget))
 		class UTextBlock* RoundCountText;
+	UPROPERTY(meta = (BindWidget))
+		class UTextBlock* EndText;
 
+	int CurrentRound = 0;
 	UPROPERTY()
 		class AUPlayerCharacter* PlayerCharacter;
 
