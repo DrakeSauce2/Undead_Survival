@@ -30,11 +30,11 @@ struct FUWeaponSlot
 
 public:
 	UPROPERTY(EditAnywhere)
-		int WeaponIndex;
+		int WeaponIndex = 0;
 	UPROPERTY(EditAnywhere)
-		int AmmoClip;
+		int AmmoClip = 0;
 	UPROPERTY(EditAnywhere)
-		int AmmoTotal;
+		int AmmoTotal = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -50,39 +50,38 @@ struct FUWeaponData : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 		FTransform FPSMeshTransform;
 
-
 	UPROPERTY(EditAnywhere)
-		FireType FiringType;
+		FireType FiringType = FireType::SingleFire;
 	UPROPERTY(EditAnywhere)
-		float Damage;
+		float Damage = 0.0f;
 	UPROPERTY(EditAnywhere)
-		float RecoilAmount;
+		float RecoilAmount = 0.0f;
 	UPROPERTY(EditAnywhere)
-		float RecoilYaw;
+		float RecoilYaw = 0.0f;
 	UPROPERTY(EditAnywhere)
-		float RecoilLength;
+		float RecoilLength = 0.0f;
 	UPROPERTY(EditAnywhere)
-		float FireRate;
+		float FireRate = 0.0f;
 	UPROPERTY(EditAnywhere)
-		float BulletSpread;
+		float BulletSpread = 0.0f;
 	UPROPERTY(EditAnywhere)
-		float FireMaxRange;
+		float FireMaxRange = 0.0f;
 	UPROPERTY(EditAnywhere)
-		float PullBackAmount;
+		float PullBackAmount = 0.0f;
 	UPROPERTY(EditAnywhere)
-		float AimFOV;
+		float AimFOV = 0.0f;
 	UPROPERTY(EditAnywhere)
-		int AmmoClipMax;
+		int AmmoClipMax = 0.0f;
 	UPROPERTY(EditAnywhere)
-		int AmmoTotalMax;
+		int AmmoTotalMax = 0.0f;
 	UPROPERTY(EditAnywhere)
-		float ReloadSpeed;
+		float ReloadSpeed = 0.0f;
 	UPROPERTY(EditAnywhere)
 		class UParticleSystem* MuzzleFlash;
 	UPROPERTY(EditAnywhere)
 		class USoundCue* FireSound;
 	UPROPERTY(EditAnywhere)
-		FRotator MuzzleRotation;
+		FRotator MuzzleRotation = FRotator::ZeroRotator;
 	UPROPERTY(EditAnywhere)
 		class UParticleSystem* ImpactParticle;
 	UPROPERTY(EditAnywhere)

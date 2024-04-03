@@ -34,8 +34,6 @@ void AUEnemyRoundSpawner::BeginPlay()
 		}
 	}
 
-	//GetWorld()->GetTimerManager().SetTimer(RoundChangeTimer, this, &AUEnemyRoundSpawner::StartNextRound, 1.0f/ 60.0f, false, RoundChangeDuration);
-
 	StartNextRound();
 }
 
@@ -74,8 +72,6 @@ void AUEnemyRoundSpawner::UpdateCurrentRound()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Round Ended!"));
 
-		//GetWorld()->GetTimerManager().SetTimer(RoundChangeTimer, this, &AUEnemyRoundSpawner::StartNextRound, 1.0f / 60.0f, false, RoundChangeDuration);
-
 		StartNextRound();
 
 		return;
@@ -99,7 +95,6 @@ void AUEnemyRoundSpawner::SpawnEnemy()
 		AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(EnemyToSpawn, SpawnPoints[SpawnLocation]->GetActorLocation(), SpawnPoints[SpawnLocation]->GetActorRotation(), *SpawnParams);
 		if (SpawnedActor) 
 		{
-			// Setup enemy health here
 			AUCharacterBase* EnemyCharacter = Cast<AUCharacterBase>(SpawnedActor);
 			if (EnemyCharacter) {
 				EnemyCharacter->SetHealth(BaseHealth);

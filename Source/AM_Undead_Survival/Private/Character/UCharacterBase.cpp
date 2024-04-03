@@ -82,11 +82,9 @@ void AUCharacterBase::RegenHealth()
 
 void AUCharacterBase::DoMeleeAttack()
 {
-    // Define the sphere parameters
     FVector SphereLocation = FVector(GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z);
     float SphereRadius = 100.0f;
 
-    // Perform the sphere overlap query
     TArray<FOverlapResult> OverlappingActors;
     FCollisionQueryParams CollisionParams;
     CollisionParams.bReturnPhysicalMaterial = false;

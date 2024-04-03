@@ -279,11 +279,22 @@ void AUPlayerCharacter::EquipWeaponAnimation(float Value)
 	(
 		Cur_WeaponData->FPSMeshTransform.GetLocation().X,
 		Cur_WeaponData->FPSMeshTransform.GetLocation().Y,
-		FMath::Lerp(Cur_WeaponData->FPSMeshTransform.GetLocation().Z - 50, Cur_WeaponData->FPSMeshTransform.GetLocation().Z, Value)
+		FMath::Lerp
+		(
+			Cur_WeaponData->FPSMeshTransform.GetLocation().Z - 50,
+			Cur_WeaponData->FPSMeshTransform.GetLocation().Z, 
+			Value
+		)
 	);
 
 
-	FTransform TargetTransform = FTransform(Cur_WeaponData->FPSMeshTransform.GetRotation(), TargetLocation, FVector::OneVector);
+	FTransform TargetTransform = FTransform
+	(
+		Cur_WeaponData->FPSMeshTransform.GetRotation(),
+		TargetLocation,
+		FVector::OneVector
+	);
+
 	FPSMesh->SetRelativeTransform(TargetTransform);
 }
 
